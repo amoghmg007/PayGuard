@@ -42,7 +42,7 @@ async def calculate_risk(extracted_data: Dict[str, Any]) -> Dict[str, Any]:
     
     if GEMINI_AVAILABLE:
         try:
-            logger.info("Using Gemini 1.5 Flash to calculate risk narrative severity.")
+            logger.info("Using Gemini 2.5 Flash to calculate risk narrative severity.")
             prompt = f"""
             Analyze this fraud instance: {json.dumps(extracted_data)}
             Rate the narrative severity on a scale of 0 to 100 based on standard anti-fraud heuristics.
@@ -54,7 +54,26 @@ async def calculate_risk(extracted_data: Dict[str, Any]) -> Dict[str, Any]:
             llm_behavior_score = int(response_data.get('severity_score', 88))
             logger.info(f"Gemini LLM evaluated behavior score: {llm_behavior_score}")
         except Exception as e:
-            logger.error(f"Gemini API call failed: {e}. Falling back to 88.")
+            groq_key = os.getenv("GROQ_API_KEY", "")
+            if groq_key and ("429" in str(e) or "quota" in str(e).lower() or "exhausted" in str(e).lower()):
+                logger.warning("Gemini limit reached. Running Groq failover for risk matrix.")
+                try:
+                    from groq import AsyncGroq
+                    groq_client = AsyncGroq(api_key=groq_key)
+                    completion = await groq_client.chat.completions.create(
+                        model="llama3-70b-8192",
+                        messages=[{"role": "system", "content": prompt}],
+                        temperature=0,
+                        response_format={"type":"json_object"}
+                    )
+                    res = completion.choices[0].message.content
+                    response_data = json.loads(res.replace("```json", "").replace("```", "").strip())
+                    llm_behavior_score = int(response_data.get('severity_score', 88))
+                    logger.info(f"Groq LLM evaluated behavior score: {llm_behavior_score}")
+                except Exception as ge:
+                    logger.error(f"Groq failover also failed: {ge}")
+            else:
+                logger.error(f"Gemini API call failed: {e}. Falling back to 88.")
     
     # 3. Hybrid Synthesis
     final_score = int((rule_score * 0.6) + (llm_behavior_score * 0.4))

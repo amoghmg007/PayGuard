@@ -7,6 +7,7 @@ load_dotenv()
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import logging
 
@@ -323,6 +324,18 @@ def get_case_summary(case_id: str):
         "total_actions": len(states)
     }
 
-@app.get("/")
-def health_check():
-    return {"status": "operational", "engine": "running"}
+if os.path.isdir("static/assets"):
+    app.mount("/assets", StaticFiles(directory="static/assets"), name="assets")
+
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    # API endpoints are evaluated first, so this catches everything else
+    if full_path and os.path.isfile(f"static/{full_path}"):
+        return FileResponse(f"static/{full_path}")
+    
+    # Fallback to index.html for Single Page Application routing
+    index_path = "static/index.html"
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+        
+    return {"status": "operational", "engine": "running", "warning": "Static UI not found at /static"}

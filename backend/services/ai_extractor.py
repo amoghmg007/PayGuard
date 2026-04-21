@@ -21,6 +21,58 @@ if GEMINI_API_KEY:
 else:
     GEMINI_AVAILABLE = False
 
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+groq_client = None
+if GROQ_API_KEY:
+    try:
+        from groq import AsyncGroq
+        groq_client = AsyncGroq(api_key=GROQ_API_KEY)
+    except Exception as e:
+        logger.error(f"Groq SDK failed to load: {e}")
+
+async def groq_extract(prompt: str, image_bytes: bytes, mime_type: str):
+    if not groq_client:
+        raise Exception("Groq not configured for failover")
+    import base64
+    
+    if image_bytes and mime_type:
+        b64_img = base64.b64encode(image_bytes).decode('utf-8')
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime_type};base64,{b64_img}",
+                        },
+                    },
+                ],
+            }
+        ]
+        model_name = "llama-3.2-11b-vision-preview"
+        response_format = None
+    else:
+        messages = [
+            {
+                "role": "system",
+                "content": prompt
+            }
+        ]
+        model_name = "llama3-70b-8192"
+        response_format = {"type": "json_object"}
+        
+    completion = await groq_client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        temperature=0,
+        response_format=response_format
+    )
+    res = completion.choices[0].message.content
+    res = res.replace("```json", "").replace("```", "").strip()
+    return json.loads(res)
+
 def deterministic_scan(text: str) -> list:
     """System 1: Regex/Keyword layer for fast signal detection."""
     signals = []
@@ -137,5 +189,12 @@ async def extract_entities(raw_text: str, image_bytes: bytes = None, mime_type: 
         return json.loads(response_text)
         
     except Exception as e:
+        if groq_client and ("429" in str(e) or "quota" in str(e).lower() or "exhausted" in str(e).lower()):
+             logger.warning("Gemini Quota Exceeded. Failing over to GROQ Vision/Text cluster.")
+             try:
+                 return await groq_extract(prompt, image_bytes, mime_type)
+             except Exception as ge:
+                 logger.error(f"Groq failover also failed: {ge}")
+                 raise Exception(f"Dynamic LLM Extraction Failed across both primary and failover networks.")
         logger.error(f"Gemini API call failed: {e}.")
         raise Exception(f"Dynamic LLM Extraction Failed: {e}")

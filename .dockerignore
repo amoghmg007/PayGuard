@@ -1,0 +1,12 @@
+node_modules
+frontend/dist
+backend/__pycache__
+backend/*.pyc
+backend/env
+backend/venv
+backend/.venv
+.env
+backend/action_state.db
+backend/audit_logs.db
+backend/artifacts/
+.git

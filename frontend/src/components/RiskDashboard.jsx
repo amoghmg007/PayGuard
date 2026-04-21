@@ -7,8 +7,9 @@ import {
   FileCheck, Shield, ChevronRight, MonitorDot, DatabaseZap, Loader
 } from 'lucide-react';
 
-const baseVar = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_BASE = baseVar.endsWith('/') ? baseVar.slice(0, -1) : baseVar;
+const envUrl = import.meta.env.VITE_API_URL || '';
+const isDev = window.location.hostname === 'localhost' && window.location.port === '5173';
+const API_BASE = envUrl ? (envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl) : (isDev ? 'http://localhost:8000' : '');
 
 export default function RiskDashboard({ extractedData, onBack }) {
   const [activeTab, setActiveTab] = useState('overview');

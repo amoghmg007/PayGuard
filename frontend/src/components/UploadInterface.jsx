@@ -18,8 +18,9 @@ function getFileIcon(file) {
   return <FileText className="w-5 h-5 text-white/60" />;
 }
 
-const baseVar = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_BASE = baseVar.endsWith('/') ? baseVar.slice(0, -1) : baseVar;
+const envUrl = import.meta.env.VITE_API_URL || '';
+const isDev = window.location.hostname === 'localhost' && window.location.port === '5173';
+const API_BASE = envUrl ? (envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl) : (isDev ? 'http://localhost:8000' : '');
 
 export default function UploadInterface({ onUploadComplete, onBack }) {
   const [isDragging, setIsDragging] = useState(false);
