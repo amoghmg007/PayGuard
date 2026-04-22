@@ -8,11 +8,11 @@ if os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"):
     DB_PATH = "/tmp/payguard_audit.db"
 
 def get_connection():
+    global DB_PATH
     try:
         return sqlite3.connect(DB_PATH)
     except sqlite3.OperationalError:
         # Fallback for read-only serverless environments if env vars fail
-        global DB_PATH
         DB_PATH = "/tmp/payguard_audit.db"
         return sqlite3.connect(DB_PATH)
 
