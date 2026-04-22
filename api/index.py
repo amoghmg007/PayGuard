@@ -39,7 +39,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-builder = LegalPackBuilder(storage_dir="artifacts")
+ARTIFACTS_DIR = "/tmp/artifacts" if os.environ.get("VERCEL") else "artifacts"
+builder = LegalPackBuilder(storage_dir=ARTIFACTS_DIR)
 
 class ExtractionRequest(BaseModel):
     raw_evidence: str
@@ -164,7 +165,7 @@ def download_artifact(filename: str):
     # Security: only allow filenames, no path traversal
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
-    safe_path = os.path.join("artifacts", filename)
+    safe_path = os.path.join(ARTIFACTS_DIR, filename)
     if os.path.exists(safe_path):
         return FileResponse(safe_path, filename=filename, media_type='application/pdf')
     raise HTTPException(status_code=404, detail="File Payload Not Found")
