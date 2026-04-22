@@ -3,44 +3,54 @@ import os
 import json
 from datetime import datetime
 
-if os.environ.get("VERCEL"):
+DB_PATH = os.path.join(os.path.dirname(__file__), "payguard_audit.db")
+if os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"):
     DB_PATH = "/tmp/payguard_audit.db"
-else:
-    DB_PATH = os.path.join(os.path.dirname(__file__), "payguard_audit.db")
 
 def get_connection():
-    return sqlite3.connect(DB_PATH)
+    try:
+        return sqlite3.connect(DB_PATH)
+    except sqlite3.OperationalError:
+        # Fallback for read-only serverless environments if env vars fail
+        global DB_PATH
+        DB_PATH = "/tmp/payguard_audit.db"
+        return sqlite3.connect(DB_PATH)
 
 def initialize_database():
-    conn = get_connection()
-    c = conn.cursor()
-    # Immutable Execution/Audit Log Table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS audit_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            case_id TEXT NOT NULL,
-            action TEXT NOT NULL,
-            status TEXT NOT NULL,
-            timestamp TEXT NOT NULL,
-            request_payload TEXT,
-            response_payload TEXT,
-            execution_delay REAL
-        )
-    ''')
-    
-    # State tracking table for ARDG tasks
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS action_state (
-            case_id TEXT NOT NULL,
-            action TEXT NOT NULL,
-            current_state TEXT NOT NULL,
-            attempts INTEGER DEFAULT 0,
-            last_updated TEXT NOT NULL,
-            PRIMARY KEY (case_id, action)
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    try:
+        conn = get_connection()
+        c = conn.cursor()
+        # Immutable Execution/Audit Log Table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                case_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                status TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                request_payload TEXT,
+                response_payload TEXT,
+                execution_delay REAL
+            )
+        ''')
+        
+        # State tracking table for ARDG tasks
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS action_state (
+                case_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                current_state TEXT NOT NULL,
+                attempts INTEGER DEFAULT 0,
+                last_updated TEXT NOT NULL,
+                PRIMARY KEY (case_id, action)
+            )
+        ''')
+        conn.commit()
+        conn.close()
+    except sqlite3.OperationalError:
+        # If it still fails (e.g. read only file system), fail silently 
+        # so the server doesn't crash on boot in serverless environments
+        pass
 
 def log_audit(case_id, action, status, req_payload, res_payload, delay=0.0):
     conn = get_connection()

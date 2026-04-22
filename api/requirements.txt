@@ -4,9 +4,9 @@ python-dotenv
 pydantic
 google-generativeai
 fpdf2
-fastapi-cors
 requests
 beautifulsoup4
 python-multipart
 pypdf
 groq
+httpx
