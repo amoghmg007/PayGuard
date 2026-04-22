@@ -55,13 +55,13 @@ async def calculate_risk(extracted_data: Dict[str, Any]) -> Dict[str, Any]:
             logger.info(f"Gemini LLM evaluated behavior score: {llm_behavior_score}")
         except Exception as e:
             groq_key = os.getenv("GROQ_API_KEY", "")
-            if groq_key and ("429" in str(e) or "quota" in str(e).lower() or "exhausted" in str(e).lower()):
-                logger.warning("Gemini limit reached. Running Groq failover for risk matrix.")
+            if groq_key:
+                logger.warning(f"Gemini generation failed: {e}. Running Groq failover for risk matrix.")
                 try:
                     from groq import AsyncGroq
                     groq_client = AsyncGroq(api_key=groq_key)
                     completion = await groq_client.chat.completions.create(
-                        model="llama3-70b-8192",
+                        model="llama-3.3-70b-versatile",
                         messages=[{"role": "system", "content": prompt}],
                         temperature=0,
                         response_format={"type":"json_object"}

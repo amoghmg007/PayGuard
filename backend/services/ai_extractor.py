@@ -60,7 +60,7 @@ async def groq_extract(prompt: str, image_bytes: bytes, mime_type: str):
                 "content": prompt
             }
         ]
-        model_name = "llama3-70b-8192"
+        model_name = "llama-3.3-70b-versatile"
         response_format = {"type": "json_object"}
         
     completion = await groq_client.chat.completions.create(
@@ -189,8 +189,8 @@ async def extract_entities(raw_text: str, image_bytes: bytes = None, mime_type: 
         return json.loads(response_text)
         
     except Exception as e:
-        if groq_client and ("429" in str(e) or "quota" in str(e).lower() or "exhausted" in str(e).lower()):
-             logger.warning("Gemini Quota Exceeded. Failing over to GROQ Vision/Text cluster.")
+        if groq_client:
+             logger.warning(f"Gemini generation failed: {e}. Failing over to GROQ Vision/Text cluster.")
              try:
                  return await groq_extract(prompt, image_bytes, mime_type)
              except Exception as ge:
