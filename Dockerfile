@@ -1,13 +1,13 @@
 # Stage 1: Build the React Application
 FROM node:18-alpine AS build
 
-WORKDIR /app/frontend
+WORKDIR /app
 
 # Install dependencies and build
-COPY frontend/package.json frontend/package-lock.json* ./
+COPY package.json package-lock.json* ./
 RUN npm ci
 
-COPY frontend/ ./
+COPY . ./
 RUN npm run build
 
 # Stage 2: Serve the application using FastAPI
@@ -21,18 +21,21 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy python dependencies
-COPY backend/requirements.txt .
+COPY api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend application
-COPY backend/ ./
+COPY api/ ./api/
 
 # Copy built frontend from Stage 1 into the static directory
-COPY --from=build /app/frontend/dist ./static
+COPY --from=build /app/dist ./api/static
+
+# Set working directory to api so relative paths (like 'static/') work
+WORKDIR /app/api
 
 # Expose cloud run port
 ENV PORT=8000
 EXPOSE ${PORT}
 
 # Run the backend
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "uvicorn index:app --host 0.0.0.0 --port ${PORT}"]
