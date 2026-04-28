@@ -4,7 +4,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import uuid
 import shutil
 from dotenv import load_dotenv
-load_dotenv()
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+load_dotenv(env_path)
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware

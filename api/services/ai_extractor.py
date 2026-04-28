@@ -177,7 +177,7 @@ async def extract_entities(raw_text: str, image_bytes: bytes = None, mime_type: 
         
         Text: "{raw_text}"
         """
-        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json", "temperature": 0.0})
+        model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json", "temperature": 0.0})
         
         if image_bytes and mime_type:
             contents = [prompt, {"mime_type": mime_type, "data": image_bytes}]
